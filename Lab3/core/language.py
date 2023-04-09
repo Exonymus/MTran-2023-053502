@@ -223,6 +223,8 @@ class VariableTypes(Enum):
     STRING = 3
     BOOL = 4
     ARRAY = 5
+    NAMESPACE = 6
+    FUNCTION = 7
 
 
 def IsKeyword(lexeme) -> bool:
