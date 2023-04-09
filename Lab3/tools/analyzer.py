@@ -1,12 +1,6 @@
 from core.tables import *
-from core.language import *
-
-
-class LexicalAnalyzerError(Exception):
-    def __init__(self, message, file_name, coordinate_line, coordinate_offset):
-        self.ErrorMessage = 'File "' + file_name + '" [' + str(coordinate_line) + \
-                            ':' + str(coordinate_offset) + ']: error: ' + message
-        super().__init__(self.ErrorMessage)
+from core.checks import *
+from core.errors import LexicalAnalyzerError
 
 
 class LexicalAnalyzer:
@@ -111,7 +105,8 @@ class LexicalAnalyzer:
             if self.VariableTable[i].itemName == name:
                 return i
 
-        self.VariableTable.append(VariableTableItem(-1, -1, name, VariableTypes.UNKNOWN))
+        self.VariableTable.append(VariableTableItem(len(self.VariableTable),
+                                                    -1, -1, name, Language.VariableTypes.UNKNOWN))
 
         return len(self.VariableTable) - 1
 
@@ -156,7 +151,7 @@ class LexicalAnalyzer:
 
     def Id_KeywordState(self):
         """
-            Reads the whole lexeme and decides whether it is a keyword or a variable
+            Reads the whole lexeme and decides whether it is a keyword or a variable.
         """
 
         self.Buffer = ''
@@ -178,7 +173,7 @@ class LexicalAnalyzer:
 
     def NumberState(self):
         """
-            Reads the whole lexeme, defines it type and adds it to the list
+            Reads the whole lexeme, defines it type and adds it to the list.
         """
 
         self.Buffer = ''
@@ -189,9 +184,7 @@ class LexicalAnalyzer:
             if self.Char == '.':
                 # Multiple dots error handler
                 if dots == 1:
-                    self.ErrorMessage = 'too many decimal points in number'
-                    self.State = Language.States.ERROR
-                    return
+                    return self.ThrowError('too many decimal points in number')
                 dots += 1
             self.Buffer += self.Char
             self.ReadChar()
@@ -199,20 +192,17 @@ class LexicalAnalyzer:
         # Unknown characters after number error handler
         if not IsWhitespace(self.Char) and self.Char not in operators \
                 and not IsEOF(self.Char) and self.Char not in [')', ']', ',', ';', '}', 'e', 'E']:
-            self.ErrorMessage = "wrong characters after a number"
-            self.State = Language.States.ERROR
-            return
-
+            return self.ThrowError("wrong characters after a number")
         # Reset array switch
         if self.Char == ']':
             self.IsArray = False
 
         # Check if number is double and define lexeme and literal types
         if dots == 1:
-            literal_type = LiteralTypes.DOUBLE_CONSTANT
+            literal_type = Language.LiteralTypes.DOUBLE_CONSTANT
             lexeme_type = Language.LexemeTypes.DOUBLE_NUM
         else:
-            literal_type = LiteralTypes.INT_CONSTANT
+            literal_type = Language.LiteralTypes.INT_CONSTANT
             lexeme_type = Language.LexemeTypes.INT_NUM
 
         id = self.AddToLiterals(self.Buffer, literal_type)
@@ -220,10 +210,20 @@ class LexicalAnalyzer:
 
         self.State = Language.States.START
 
+    def ThrowError(self, error_message):
+        """
+            Handles error throwing.
+        """
+
+        self.ErrorMessage = error_message
+        self.State = Language.States.ERROR
+        return
+
     def DelimiterState(self):
         """
-            Defines delimiter and adds lexeme to the list
+            Defines delimiter and adds lexeme to the list.
         """
+
         self.AddLexeme(Language.LexemeTypes.DELIMITER, delimiters[self.Char])
         self.ReadChar()
         self.State = Language.States.START
@@ -238,15 +238,13 @@ class LexicalAnalyzer:
         while self.Char != '"':
             # Handle unclosed quotes error
             if self.Char == '\n' or IsEOF(self.Char):
-                self.ErrorMessage = 'missing terminating " character'
-                self.State = Language.States.ERROR
-                return
+                return self.ThrowError('missing terminating " character')
 
             if self.Char == '\\':
                 self.ReadChar()
                 # Handle escape sequence error
                 try:
-                    self.Buffer += GetEscSeq(self.Char)
+                    self.Buffer += IsEscapeSequence(self.Char)
                 except ValueError:
                     self.ErrorMessage = 'no such escape sequence'
                     self.CoordinateOffset -= 1
@@ -257,7 +255,7 @@ class LexicalAnalyzer:
 
             self.ReadChar()
 
-        id = self.AddToLiterals(self.Buffer, LiteralTypes.STRING_CONSTANT)
+        id = self.AddToLiterals(self.Buffer, Language.LiteralTypes.STRING_CONSTANT)
         self.AddLexeme(Language.LexemeTypes.STRING, id)
         self.ReadChar()
         self.State = Language.States.START

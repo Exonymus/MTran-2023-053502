@@ -18,15 +18,15 @@ def printLexemes(lexemes):
 
     for lexeme in lexemes:
         if lexeme.coordinate_offset < 10:
-            coordinate = '[' + str(lexeme.coordinate_line) + ':0' + str(lexeme.coordinate_offset) + ']'
+            coordinate = f'[{str(lexeme.coordinate_line)}:0{str(lexeme.coordinate_offset)}]'
         else:
-            coordinate = '[' + str(lexeme.coordinate_line) + ':' + str(lexeme.coordinate_offset) + ']'
+            coordinate = f'[{str(lexeme.coordinate_line)}:{str(lexeme.coordinate_offset)}]'
 
         lexeme_type = str(lexeme.type)
         if lexeme.type in [Language.LexemeTypes.STRING, Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
-            value = 'Constant-ID: ' + str(lexeme.value)
+            value = f'Constant-ID: {str(lexeme.value)}'
         elif lexeme.type == Language.LexemeTypes.IDENTIFIER:
-            value = 'Identifier-ID: ' + str(lexeme.value)
+            value = f'Identifier-ID: {str(lexeme.value)}'
         else:
             value = str(lexeme.value)
 
@@ -47,7 +47,7 @@ def printLiterals(literals):
         literal_id = str(literal.itemId)
         literal_type = str(literal.itemType)
 
-        if literal.itemType == LiteralTypes.STRING_CONSTANT:
+        if literal.itemType == Language.LiteralTypes.STRING_CONSTANT:
             literal_value = repr(literal.itemValue)
         else:
             literal_value = str(literal.itemValue)
@@ -62,14 +62,15 @@ def printVariables(variables):
         Beautifies the variables output  and prints it.
     """
 
-    print("{:<20} {:<32}".format(' ' * 8 + 'NAME', ' ' * 14 + 'Type'))
-    print("{:<20} {:<32}".format('-' * 20, '-' * 32))
+    print("{:<4} {:<20} {:<32}".format(' ID', ' ' * 8 + 'NAME', ' ' * 14 + 'Type'))
+    print("{:<4} {:<20} {:<32}".format('-' * 4, '-' * 20, '-' * 32))
 
     for variable in variables:
+        variable_id = str(variable.itemId)
         variable_name = str(variable.itemName)
         variable_type = str(variable.itemType)
 
-        print("{:<20} {:<32}".format(variable_name, variable_type))
+        print("{:<4} {:<20} {:<32}".format(variable_id, variable_name, variable_type))
 
     br()
 

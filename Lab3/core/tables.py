@@ -5,16 +5,25 @@ from dataclasses import dataclass
 @dataclass()
 class LiteralTableItem:
     itemId: int
-    itemType: LiteralTypes
+    itemType: Language.LiteralTypes
     itemValue: str
 
 
 @dataclass()
 class VariableTableItem:
+    itemId: int
     itemBlockId: int
     itemBlockLevel: int
     itemName: str
-    itemType: VariableTypes
+    itemType: Language.VariableTypes
+
+
+@dataclass()
+class LexTableItem:
+    type: Language.LexemeTypes
+    value: int or Language.KeyWords or Language.Delimiters or Language.Operators
+    coordinate_line: int
+    coordinate_offset: int
 
 
 class LiteralTable:
