@@ -20,8 +20,8 @@ class VariableTableItem:
 
 @dataclass()
 class LexTableItem:
-    type: Language.LexemeTypes
-    value: int or Language.KeyWords or Language.Delimiters or Language.Operators
+    itemType: Language.LexemeTypes
+    itemValue: int or Language.KeyWords or Language.Delimiters or Language.Operators
     coordinate_line: int
     coordinate_offset: int
 

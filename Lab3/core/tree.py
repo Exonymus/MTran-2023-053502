@@ -1,14 +1,17 @@
 from core.language import *
+from core.tables import VariableTableItem
 
 
 class SyntaxTreNodeTypes(Enum):
-    COMMON = 0,
-    DECLARATION = 1,
-    CODE_BLOCK = 2
+    COMMON = 0
+    DECLARATION = 1
+    FUNCTION_DECLARATION = 2
+    FUNCTION_ARGUMENTS = 3
+    CODE_BLOCK = 4
 
 
 class SyntaxTreeNode:
-    def __init__(self, lexeme, type=LexicalTreNodeTypes.COMMON):
+    def __init__(self, lexeme, type=SyntaxTreNodeTypes.COMMON):
         self.Lexeme = lexeme
         self.Children = []
         self.Type = type
@@ -25,16 +28,18 @@ class SyntaxTreeNode:
     def __str__(self):
         if self.Lexeme is None:
             return str(self.Type)
-        elif self.Lexeme.type in [
+        elif self.Lexeme.itemType in [
             Language.LexemeTypes.IDENTIFIER,
             Language.LexemeTypes.INT_NUM,
             Language.LexemeTypes.DOUBLE_NUM
         ]:
-            return f"{str(self.Lexeme.type)} : {str(self.Lexeme.value)}"
-        elif self.Lexeme.type == Language.LexemeTypes.STRING:
-            return f"{str(self.Lexeme.type)} : {repr(self.Lexeme.value)}"
+            return f"{str(self.Lexeme.itemType)} : {str(self.Lexeme.itemValue)}"
+        elif self.Lexeme.itemType == Language.LexemeTypes.STRING:
+            return f"{str(self.Lexeme.itemType)} : {repr(self.Lexeme.itemValue)}"
+        elif type(self.Lexeme) is VariableTableItem:
+            return str(self.Lexeme.itemName)
         else:
-            return str(self.Lexeme.value)
+            return str(self.Lexeme.itemValue)
 
 
 def printSyntaxTree(root, depth: int = 0):
@@ -42,5 +47,5 @@ def printSyntaxTree(root, depth: int = 0):
         return
 
     print('\t' * depth + str(root))
-    for child in root.get_childs():
+    for child in root.GetChildren():
         printSyntaxTree(child, depth + 1)

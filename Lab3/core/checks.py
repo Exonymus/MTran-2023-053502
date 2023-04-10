@@ -44,6 +44,7 @@ key_words = {
     'stoi': Language.KeyWords.STOI,
     'stod': Language.KeyWords.STOD,
     'exit': Language.KeyWords.EXIT,
+    'endl': Language.KeyWords.ENDL,
 }
 
 delimiters = {

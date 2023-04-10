@@ -1,4 +1,5 @@
 from tools.analyzer import *
+from tools.parser import *
 
 
 def br():
@@ -22,13 +23,13 @@ def printLexemes(lexemes):
         else:
             coordinate = f'[{str(lexeme.coordinate_line)}:{str(lexeme.coordinate_offset)}]'
 
-        lexeme_type = str(lexeme.type)
-        if lexeme.type in [Language.LexemeTypes.STRING, Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
-            value = f'Constant-ID: {str(lexeme.value)}'
-        elif lexeme.type == Language.LexemeTypes.IDENTIFIER:
-            value = f'Identifier-ID: {str(lexeme.value)}'
+        lexeme_type = str(lexeme.itemType)
+        if lexeme.itemType in [Language.LexemeTypes.STRING, Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
+            value = f'Constant-ID: {str(lexeme.itemValue)}'
+        elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+            value = f'Identifier-ID: {str(lexeme.itemValue)}'
         else:
-            value = str(lexeme.value)
+            value = str(lexeme.itemValue)
 
         print("{:<10} {:<32} {:<20}".format(coordinate, lexeme_type, value))
 
@@ -62,15 +63,20 @@ def printVariables(variables):
         Beautifies the variables output  and prints it.
     """
 
-    print("{:<4} {:<20} {:<32}".format(' ID', ' ' * 8 + 'NAME', ' ' * 14 + 'Type'))
-    print("{:<4} {:<20} {:<32}".format('-' * 4, '-' * 20, '-' * 32))
+    print("{:<4} {:<20} {:<32} {:<7} {:<10}".format(' ID', ' ' * 8 + 'NAME',
+                                                    ' ' * 14 + 'Type', 'ScopeId', 'ScopeLevel'))
+    print("{:<4} {:<20} {:<32} {:<7} {:<10}".format('-' * 4, '-' * 20,
+                                                    '-' * 32, '-' * 7, '-' * 10))
 
     for variable in variables:
         variable_id = str(variable.itemId)
         variable_name = str(variable.itemName)
         variable_type = str(variable.itemType)
+        variable_blockId = str(variable.itemBlockId)
+        variable_blockLevel = str(variable.itemBlockLevel)
 
-        print("{:<4} {:<20} {:<32}".format(variable_id, variable_name, variable_type))
+        print("{:<4} {:<20} {:<32} {:<7} {:<10}".format(variable_id, variable_name,
+                                                        variable_type, variable_blockId, variable_blockLevel))
 
     br()
 
@@ -89,6 +95,7 @@ def main():
 
         # Get resulting lexemes from the analyzer
         lexemes = lexAnalyzer.GetLexemes()
+        parser = Parser(fileName, lexemes, literalTable, variableTable)
         br()
 
         # Parsed lexemes
@@ -103,7 +110,14 @@ def main():
         print("\t⇒ VARIABLE TABLE:\n")
         printVariables(variableTable)
 
+        # Syntax tree
+        print("\t⇒ Syntax tree:\n")
+        parser.PrintSyntaxTree()
+        # root = parser.GetTree()
+
     except LexicalAnalyzerError as ex:
+        print(ex)
+    except ParserError as ex:
         print(ex)
 
 

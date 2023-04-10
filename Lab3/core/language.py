@@ -64,6 +64,7 @@ class Language:
         STOI = 39
         STOD = 40
         EXIT = 41
+        ENDL = 42
 
     class Operators(Enum):
         INCREMENT = 0
@@ -117,6 +118,9 @@ class Language:
         ARRAY = 5
         NAMESPACE = 6
         FUNCTION = 7
+        VOID = 8
+        POINTER = 9
+        REFERENCE = 10
 
     class LiteralTypes(Enum):
         INT_CONSTANT = 1

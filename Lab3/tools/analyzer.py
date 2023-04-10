@@ -31,6 +31,9 @@ class LexicalAnalyzer:
         self.Buffer = ''
         self.CoordinateLine = 0
         self.CoordinateOffset = 0
+        self.BlockLevel = 0
+        self.BlockId = 0
+        self.Scope = [(self.BlockLevel, self.BlockId)]
         self.ErrorMessage = ''
 
         # Perform analysis of provided file
@@ -73,6 +76,10 @@ class LexicalAnalyzer:
         if self.Char == '\n' and self.IsArray is False:
             self.CoordinateLine += 1
             self.CoordinateOffset = 0
+        elif self.Char == '{':
+            self.EnterBlock()
+        elif self.Char == '}':
+            self.ExitBlock()
         elif self.Char == ']':
             self.IsArray = False
         elif self.Char == '\n' and self.IsArray is True:
@@ -100,13 +107,27 @@ class LexicalAnalyzer:
             Tries to find variable in the table, if not adds it to the table.
         """
 
+        # Assign approximate scope values
+        block_level = self.Scope[-1][0]
+        block_id = self.Scope[-1][1]
+
+        # Find possible existing function arguments with the same name
+        filtered_vars = [var for var in self.VariableTable if
+                         var.itemName == name and var.itemBlockId == 0 and var.itemBlockLevel == 0]
+        if filtered_vars:
+            last_var = max(filtered_vars, key=lambda x: x.itemId)
+            last_var.itemBlockId = block_id
+            last_var.itemBlockLevel = block_level
+
         # Find if variable already exists in the table
         for i in range(len(self.VariableTable)):
-            if self.VariableTable[i].itemName == name:
+            if self.VariableTable[i].itemName == name\
+                    and self.VariableTable[i].itemBlockId == block_id:
                 return i
 
+        # Add variable to the table
         self.VariableTable.append(VariableTableItem(len(self.VariableTable),
-                                                    -1, -1, name, Language.VariableTypes.UNKNOWN))
+                                                    block_id, block_level, name, Language.VariableTypes.UNKNOWN))
 
         return len(self.VariableTable) - 1
 
@@ -123,6 +144,23 @@ class LexicalAnalyzer:
         """
 
         return self.Lexemes
+
+    def EnterBlock(self):
+        """
+            Change scope values for the entering code block.
+        """
+
+        self.BlockLevel += 1
+        self.BlockId += 1
+        self.Scope.append((self.BlockLevel, self.BlockId))
+
+    def ExitBlock(self):
+        """
+            Change scope values for the exiting code block.
+        """
+
+        self.BlockLevel -= 1
+        self.Scope.pop()
 
     def CheckState(self):
         """
