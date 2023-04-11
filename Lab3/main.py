@@ -6,7 +6,7 @@ def br():
     """
         Prints text separator.
     """
-    print('\n', '#' * 100, '\n')
+    print('\n', '#' * 130, '\n')
 
 
 def printLexemes(lexemes):
@@ -63,10 +63,10 @@ def printVariables(variables):
         Beautifies the variables output  and prints it.
     """
 
-    print("{:<4} {:<20} {:<32} {:<7} {:<10}".format(' ID', ' ' * 8 + 'NAME',
-                                                    ' ' * 14 + 'Type', 'ScopeId', 'ScopeLevel'))
-    print("{:<4} {:<20} {:<32} {:<7} {:<10}".format('-' * 4, '-' * 20,
-                                                    '-' * 32, '-' * 7, '-' * 10))
+    print("{:<4} {:<20} {:<70} {:<7} {:<10}".format(' ID', ' ' * 8 + 'NAME',
+                                                    ' ' * 33 + 'Type', 'ScopeId', 'ScopeLevel'))
+    print("{:<4} {:<20} {:<70} {:<7} {:<10}".format('-' * 4, '-' * 20,
+                                                    '-' * 70, '-' * 7, '-' * 10))
 
     for variable in variables:
         variable_id = str(variable.itemId)
@@ -75,7 +75,7 @@ def printVariables(variables):
         variable_blockId = str(variable.itemBlockId)
         variable_blockLevel = str(variable.itemBlockLevel)
 
-        print("{:<4} {:<20} {:<32} {:<7} {:<10}".format(variable_id, variable_name,
+        print("{:<4} {:<20} {:<70} {:<7} {:<10}".format(variable_id, variable_name,
                                                         variable_type, variable_blockId, variable_blockLevel))
 
     br()
@@ -96,6 +96,9 @@ def main():
         # Get resulting lexemes from the analyzer
         lexemes = lexAnalyzer.GetLexemes()
         parser = Parser(fileName, lexemes, literalTable, variableTable)
+
+        # Clear variable table
+        variableTable = [var for var in variableTable if var.itemType != Language.VariableTypes.UNKNOWN]
         br()
 
         # Parsed lexemes

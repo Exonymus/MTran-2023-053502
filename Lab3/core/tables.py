@@ -15,7 +15,7 @@ class VariableTableItem:
     itemBlockId: int
     itemBlockLevel: int
     itemName: str
-    itemType: Language.VariableTypes
+    itemType: Language.VariableTypes or []
 
 
 @dataclass()

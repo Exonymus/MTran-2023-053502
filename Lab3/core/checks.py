@@ -14,9 +14,6 @@ key_words = {
     'break': Language.KeyWords.BREAK,
     'if': Language.KeyWords.IF,
     'else': Language.KeyWords.ELSE,
-    'print': Language.KeyWords.PRINT,
-    'scan': Language.KeyWords.SCAN,
-    'to_string': Language.KeyWords.TO_STRING,
     'auto': Language.KeyWords.AUTO,
     'case': Language.KeyWords.CASE,
     'const': Language.KeyWords.CONST,
@@ -41,8 +38,6 @@ key_words = {
     'cin::': Language.KeyWords.CIN,
     'cout': Language.KeyWords.COUT,
     'cout::': Language.KeyWords.COUT,
-    'stoi': Language.KeyWords.STOI,
-    'stod': Language.KeyWords.STOD,
     'exit': Language.KeyWords.EXIT,
     'endl': Language.KeyWords.ENDL,
 }
