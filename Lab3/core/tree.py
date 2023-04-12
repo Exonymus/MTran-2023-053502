@@ -7,7 +7,8 @@ class SyntaxTreNodeTypes(Enum):
     DECLARATION = 1
     FUNCTION_DECLARATION = 2
     FUNCTION_ARGUMENTS = 3
-    CODE_BLOCK = 4
+    FUNCTION_CALL = 4
+    CODE_BLOCK = 5
 
 
 class SyntaxTreeNode:

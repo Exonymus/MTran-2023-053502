@@ -41,7 +41,7 @@ class Parser:
             node = self.ParseStatement()
             self.Root.AddChild(node)
 
-    def ParseStatement(self):
+    def ParseStatement(self, for_cycle=False):
         """
             Parses full statement to define its type and build proper node for the tree.
         """
@@ -68,6 +68,10 @@ class Parser:
                 return self.ParseIf()
             elif lexeme.itemValue == Language.KeyWords.WHILE:
                 return self.ParseWhile()
+            elif lexeme.itemValue == Language.KeyWords.DO:
+                return self.ParseDoWhile()
+            elif lexeme.itemValue == Language.KeyWords.FOR:
+                return self.ParseFor()
             elif lexeme.itemValue == Language.KeyWords.EXIT:
                 return self.ParseExit()
             elif lexeme.itemValue in [Language.KeyWords.BREAK, Language.KeyWords.CONTINUE]:
@@ -102,13 +106,19 @@ class Parser:
                 node = SyntaxTreeNode(self.GetCurrentLexeme())
                 node.AddChild(identifier_node)
                 self.NextLexeme()
+            elif self.CurrentLexemeMatches(Language.Delimiters.OPEN_PARENTHESIS):
+                # Parse function call
+                node = SyntaxTreeNode(None, SyntaxTreNodeTypes.FUNCTION_CALL)
+                node.AddChild(identifier_node)
+                node.AddChild(self.ParseFunctionCall())
             else:
                 # Parse assignment for the identifier
                 node = self.ParseAssignment(identifier_node)
 
             # Await ';'
-            self.WaitForDelimiter(Language.Delimiters.SEMICOLON)
-            self.NextLexeme()
+            if not for_cycle:
+                self.WaitForDelimiter(Language.Delimiters.SEMICOLON)
+                self.NextLexeme()
 
             return node
         else:
@@ -212,6 +222,7 @@ class Parser:
         # Function name
         identifier_node = self.ParseDeclareIdentifier(var_type)
         self.GetVariable(identifier_node.GetLexeme()).itemBlockLevel -= 1
+        self.GetVariable(identifier_node.GetLexeme()).itemBlockId = 0
 
         # Function declaration statement
         declaration_node = SyntaxTreeNode(None, SyntaxTreNodeTypes.FUNCTION_DECLARATION)
@@ -240,6 +251,50 @@ class Parser:
 
         return declaration_node
 
+    def ParseFunctionCall(self):
+        """
+            Parses the function call statement.
+        """
+
+        # (
+        self.WaitForDelimiter(Language.Delimiters.OPEN_PARENTHESIS)
+        self.NextLexeme()
+
+        call_node = SyntaxTreeNode(None, SyntaxTreNodeTypes.FUNCTION_ARGUMENTS)
+        while not self.CurrentLexemeMatches(Language.Delimiters.CLOSE_PARENTHESIS):
+            argument_node = None
+
+            # Try to get INT / DOUBLE argument
+            with contextlib.suppress(ValueError):
+                argument_node = self.ParseArithmeticExpr()
+
+            # Try to get STRING argument
+            if argument_node is None:
+                with contextlib.suppress(ValueError):
+                    argument_node = self.ParseStringExpr()
+
+            # Try to get BOOL argument
+            if argument_node is None:
+                with contextlib.suppress(ValueError):
+                    argument_node = self.ParseBoolExpr()
+
+            if argument_node is None:
+                raise ParserError("unknown function argument type", self.Source,
+                                  self.GetCurrentLexeme().coordinate_line, self.GetCurrentLexeme().coordinate_offset)
+            else:
+                call_node.AddChild(argument_node)
+
+            if not self.CurrentLexemeMatches(Language.Delimiters.CLOSE_PARENTHESIS):
+                # ,
+                self.WaitForDelimiter(Language.Delimiters.COMMA)
+                self.NextLexeme()
+
+        # )
+        self.WaitForDelimiter(Language.Delimiters.CLOSE_PARENTHESIS)
+        self.NextLexeme()
+
+        return call_node
+
     def ParseVariableDeclaration(self, function_declaration=False):
         """
             Parses a variable declaration statement.
@@ -259,16 +314,56 @@ class Parser:
         # Variable declaration statement
         declaration_node = SyntaxTreeNode(None, SyntaxTreNodeTypes.DECLARATION)
         declaration_node.AddChild(type_node)
+
+        # Parse if there is a variable init after declaration
+        identifier_node = self.ParseOptVarInit(identifier_node)
+
         declaration_node.AddChild(identifier_node)
 
         # Expected delimiter depending on variable type
         if function_declaration is not True:
+            while self.CurrentLexemeMatches(Language.Delimiters.COMMA):
+                self.NextLexeme()
+
+                # Type correction
+                if (
+                    self.GetNeighbourLexeme(1).itemValue
+                    == Language.Delimiters.LEFT_BRACKET
+                ):
+                    var_type = [Language.VariableTypes.ARRAY, var_type]
+
+                elif isinstance(var_type, list):
+                    var_type = var_type[1]
+                # Variable name
+                identifier_node = self.ParseDeclareIdentifier(var_type)
+
+                # Parse if there is a variable init after declaration
+                identifier_node = self.ParseOptVarInit(identifier_node)
+
+                # Handle array declaration
+                if self.CurrentLexemeMatches(Language.Delimiters.LEFT_BRACKET):
+                    identifier_node.AddChild(self.ParseArrayIndex())
+                    self.NextLexeme()
+
+                # Add additional identifier child
+                declaration_node.AddChild(identifier_node)
+
             self.WaitForDelimiter(Language.Delimiters.SEMICOLON)
         elif self.GetNeighbourLexeme(1).itemValue == Language.Delimiters.CLOSE_PARENTHESIS:
             self.WaitForDelimiter(Language.Delimiters.COMMA)
         self.NextLexeme()
 
         return declaration_node
+
+    def ParseOptVarInit(self, identifier_node):
+        """
+            Parses a variable init if there is in declaration statement.
+        """
+
+        if not self.LexemesRemaining() or not self.CurrentLexemeMatches(Language.Operators.EQUAL):
+            return identifier_node
+
+        return self.ParseAssignment(identifier_node)
 
     def ParseVariableType(self):
         """
@@ -333,7 +428,7 @@ class Parser:
             # Check for the double declaration of the variable
             for var in self.VariableTable:
                 if curr_var.itemName == var.itemName and block_id == var.itemBlockId:
-                    raise DoubleDeclarationError(curr_var.name,
+                    raise DoubleDeclarationError(curr_var.itemName,
                                                  self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
 
             self.VariableTable.append(VariableTableItem(len(self.VariableTable), block_id,
@@ -367,7 +462,7 @@ class Parser:
 
         # Parse the lexemes of the block
         while self.LexemesRemaining() and \
-                not self.CurrentLexemeMatches(Language.Delimiters.CLOSE_BRACES)\
+                not self.CurrentLexemeMatches(Language.Delimiters.CLOSE_BRACES) \
                 and not self.CurrentLexemeMatches(Language.KeyWords.RETURN):
             code_block_node.AddChild(self.ParseStatement())
 
@@ -399,6 +494,7 @@ class Parser:
 
         # Check variable if it is declared: by searching for it in the table
         var_real_id = -1
+
         for scope in reversed(self.Scope):
             block_level = scope[0]
             block_id = scope[1]
@@ -848,6 +944,99 @@ class Parser:
 
         return while_node
 
+    def ParseFor(self):
+        """
+            Parses a for loop statement.
+        """
+
+        # for
+        self.WaitForKeyword(Language.KeyWords.FOR)
+        for_node = SyntaxTreeNode(self.GetCurrentLexeme())
+
+        # (
+        self.NextLexeme()
+        self.WaitForDelimiter(Language.Delimiters.OPEN_PARENTHESIS)
+
+        # Empty condition exception handler
+        self.NextLexeme()
+        if self.CurrentLexemeMatches(Language.Delimiters.CLOSE_PARENTHESIS):
+            lexeme = self.GetCurrentLexeme()
+            raise ExpectedError("bool expression", self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
+
+        # for condition
+        # Possible var used
+        if not self.CurrentLexemeMatches(Language.Delimiters.SEMICOLON):
+            for_node.AddChild(self.ParseStatement())
+
+        # Possible break condition
+        if not self.CurrentLexemeMatches(Language.Delimiters.SEMICOLON):
+            for_node.AddChild(self.ParseBoolExpr())
+
+        # Possible variable change
+        self.NextLexeme()
+        if not self.CurrentLexemeMatches(Language.Delimiters.CLOSE_PARENTHESIS):
+            for_node.AddChild(self.ParseStatement(True))
+
+        # )
+        self.WaitForDelimiter(Language.Delimiters.CLOSE_PARENTHESIS)
+        self.NextLexeme()
+
+        # Check for the empty cycle body
+        if self.CurrentLexemeMatches(Language.Delimiters.SEMICOLON):
+            return for_node
+
+        # Parse body of the cycle
+        self.NestingLoop += 1
+        statement_node = self.ParseStatement()
+        self.NestingLoop -= 1
+
+        for_node.AddChild(statement_node)
+
+        return for_node
+
+    def ParseDoWhile(self):
+        """
+            Parses a do-while loop statement.
+        """
+
+        # do
+        self.WaitForKeyword(Language.KeyWords.DO)
+        do_while_node = SyntaxTreeNode(self.GetCurrentLexeme())
+        self.NextLexeme()
+
+        # Parse body of the cycle
+        self.NestingLoop += 1
+        do_while_node.AddChild(self.ParseStatement())
+        self.NestingLoop -= 1
+
+        # while
+        self.WaitForKeyword(Language.KeyWords.WHILE)
+        while_node = SyntaxTreeNode(self.GetCurrentLexeme())
+
+        # (
+        self.NextLexeme()
+        self.WaitForDelimiter(Language.Delimiters.OPEN_PARENTHESIS)
+
+        # Empty condition exception handler
+        self.NextLexeme()
+        if self.CurrentLexemeMatches(Language.Delimiters.CLOSE_PARENTHESIS):
+            lexeme = self.GetCurrentLexeme()
+            raise ExpectedError("bool expression", self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
+
+        # while condition
+        condition_node = self.ParseBoolExpr()
+        while_node.AddChild(condition_node)
+
+        # )
+        self.WaitForDelimiter(Language.Delimiters.CLOSE_PARENTHESIS)
+        self.NextLexeme()
+
+        do_while_node.AddChild(while_node)
+        self.WaitForDelimiter(Language.Delimiters.SEMICOLON)
+        self.NextLexeme()
+
+        return do_while_node
+
     def ParseCycleKeywords(self):
         """
             Checks if we can use specific cycle keyword.
@@ -1066,6 +1255,11 @@ class Parser:
                     lexeme.coordinate_offset,
                 )
         elif var.itemType not in type:
+            if (
+                isinstance(var.itemType, list)
+                and var.itemType[1] in type
+            ):
+                return
             raise ExpectedError(
                 f"one of the following variable types: {str(type)}",
                 self.Source,

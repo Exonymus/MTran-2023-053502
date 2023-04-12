@@ -1,5 +1,6 @@
 from tools.analyzer import *
 from tools.parser import *
+from sys import getsizeof
 
 
 def br():
@@ -24,7 +25,8 @@ def printLexemes(lexemes):
             coordinate = f'[{str(lexeme.coordinate_line)}:{str(lexeme.coordinate_offset)}]'
 
         lexeme_type = str(lexeme.itemType)
-        if lexeme.itemType in [Language.LexemeTypes.STRING, Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
+        if lexeme.itemType in [Language.LexemeTypes.STRING, Language.LexemeTypes.INT_NUM,
+                               Language.LexemeTypes.DOUBLE_NUM]:
             value = f'Constant-ID: {str(lexeme.itemValue)}'
         elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
             value = f'Identifier-ID: {str(lexeme.itemValue)}'
