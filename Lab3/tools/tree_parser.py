@@ -4,7 +4,7 @@ from core.tree import *
 from core.checks import *
 
 
-class Parser:
+class TreeParser:
     """
         Python syntax tree parser designed to build up a syntax tree from lexemes provided.
     """
@@ -265,17 +265,17 @@ class Parser:
             argument_node = None
 
             # Try to get INT / DOUBLE argument
-            with contextlib.suppress(ValueError):
+            with contextlib.suppress(ParserError):
                 argument_node = self.ParseArithmeticExpr()
 
             # Try to get STRING argument
             if argument_node is None:
-                with contextlib.suppress(ValueError):
+                with contextlib.suppress(ParserError):
                     argument_node = self.ParseStringExpr()
 
             # Try to get BOOL argument
             if argument_node is None:
-                with contextlib.suppress(ValueError):
+                with contextlib.suppress(ParserError):
                     argument_node = self.ParseBoolExpr()
 
             if argument_node is None:
@@ -539,36 +539,44 @@ class Parser:
         equal_node = SyntaxTreeNode(equal_lexeme)
         equal_node.AddChild(identifier_node)
 
-        # Switch to the right assignment part
-        self.NextLexeme()
+        # Parse multiple assignment
+        while self.CurrentLexemeMatches(Language.Operators.EQUAL):
 
-        # Get type of the left part of the assignment
-        identifier_lexeme = identifier_node.GetLexeme()
-        var = self.GetVariable(identifier_lexeme)
-        var_type = var.itemType
+            # Switch to the right assignment part
+            self.NextLexeme()
 
-        right_node = None
+            # Get type of the left part of the assignment
+            identifier_lexeme = identifier_node.GetLexeme()
+            var = self.GetVariable(identifier_lexeme)
+            var_type = var.itemType
 
-        if var_type in [Language.VariableTypes.INT, Language.VariableTypes.DOUBLE]:
-            right_node = self.ParseArithmeticExpr()
-        if isinstance(var.itemType, list) \
-                and var_type[0] in [Language.VariableTypes.POINTER, Language.VariableTypes.ARRAY]:
-            if var_type[1] in [Language.VariableTypes.INT, Language.VariableTypes.DOUBLE]:
+            right_node = None
+
+            # Parse literals inside left part error of multiple assignment
+            if self.GetNeighbourLexeme(1).itemValue == Language.Operators.EQUAL and \
+                self.GetCurrentLexeme().itemType != Language.LexemeTypes.IDENTIFIER:
+                raise ParserError("Identifier required as left operand of multiple assignment.", self.Source,
+                                  identifier_lexeme.coordinate_line, identifier_lexeme.coordinate_offset)
+            if var_type in [Language.VariableTypes.INT, Language.VariableTypes.DOUBLE]:
                 right_node = self.ParseArithmeticExpr()
-            elif var_type[1] == Language.VariableTypes.STRING:
+            if isinstance(var.itemType, list) \
+                    and var_type[0] in [Language.VariableTypes.POINTER, Language.VariableTypes.ARRAY]:
+                if var_type[1] in [Language.VariableTypes.INT, Language.VariableTypes.DOUBLE]:
+                    right_node = self.ParseArithmeticExpr()
+                elif var_type[1] == Language.VariableTypes.STRING:
+                    right_node = self.ParseStringExpr()
+                elif var_type[1] == Language.VariableTypes.BOOL:
+                    right_node = self.ParseBoolExpr()
+            elif var_type == Language.VariableTypes.STRING:
                 right_node = self.ParseStringExpr()
-            elif var_type[1] == Language.VariableTypes.BOOL:
+            elif var_type == Language.VariableTypes.BOOL:
                 right_node = self.ParseBoolExpr()
-        elif var_type == Language.VariableTypes.STRING:
-            right_node = self.ParseStringExpr()
-        elif var_type == Language.VariableTypes.BOOL:
-            right_node = self.ParseBoolExpr()
-        else:
-            ParserError("Unknown type of identifier.", self.Source,
-                        identifier_lexeme.coordinate_line, identifier_lexeme.coordinate_offset)
+            else:
+                ParserError("Unknown type of identifier.", self.Source,
+                            identifier_lexeme.coordinate_line, identifier_lexeme.coordinate_offset)
 
-        # Add right assignment part to the assignment node
-        equal_node.AddChild(right_node)
+            # Add right assignment part to the assignment node
+            equal_node.AddChild(right_node)
 
         return equal_node
 

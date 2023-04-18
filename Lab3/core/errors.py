@@ -60,3 +60,57 @@ class DoubleDeclarationError(ParserError):
             coordinate_line,
             coordinate_offset,
         )
+
+
+class SemanticError(Exception):
+    """
+        Error to specify semantic parser failed.
+    """
+
+    def __init__(self, message, file_name, coordinate_line, coordinate_offset):
+        self.ErrorMessage = f'File "{file_name}" [{str(coordinate_line)}:{str(coordinate_offset)}]: error: {message}'
+        super().__init__(self.ErrorMessage)
+
+
+class DivisionByZeroError(SemanticError):
+    def __init__(self, file_name, coordinate_line, coordinate_offset):
+        super().__init__("Division by zero is forbidden.", file_name, coordinate_line, coordinate_offset)
+
+class ArrayIndexError(SemanticError):
+    """
+        Error to specify parser failed on bad array index.
+    """
+
+    def __init__(self, arr_name, file_name, coordinate_line, coordinate_offset):
+        super().__init__(
+            f"Array index out of bounds {arr_name}.",
+            file_name,
+            coordinate_line,
+            coordinate_offset,
+        )
+
+class FunctionArgumentError(SemanticError):
+    """
+        Error to specify parser failed on bad function argument type index.
+    """
+
+    def __init__(self, arg_type, file_name, coordinate_line, coordinate_offset):
+        super().__init__(
+            f"Argument with {arg_type} type was expected here.",
+            file_name,
+            coordinate_line,
+            coordinate_offset,
+        )
+
+class VariableUndefinedError(SemanticError):
+    """
+        Error to specify parser failed on undefined variable.
+    """
+
+    def __init__(self, var_name, file_name, coordinate_line, coordinate_offset):
+        super().__init__(
+            f"Variable {var_name} is undefined.",
+            file_name,
+            coordinate_line,
+            coordinate_offset,
+        )

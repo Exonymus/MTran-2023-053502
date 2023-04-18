@@ -1,6 +1,6 @@
 from tools.analyzer import *
 from tools.tree_parser import *
-from sys import getsizeof
+from tools.semantic_parser import *
 
 
 def br():
@@ -97,7 +97,11 @@ def main():
 
         # Get resulting lexemes from the analyzer
         lexemes = lexAnalyzer.GetLexemes()
-        parser = Parser(fileName, lexemes, literalTable, variableTable)
+        parser = TreeParser(fileName, lexemes, literalTable, variableTable)
+
+        # Check for semantic errors
+        root = parser.GetTree()
+        semantic_parser = SemanticParser(fileName, root, literalTable, variableTable)
 
         # Clear variable table
         variableTable = [var for var in variableTable if var.itemType != Language.VariableTypes.UNKNOWN]
@@ -118,12 +122,14 @@ def main():
         # Syntax tree
         print("\t⇒ Syntax tree:\n")
         parser.PrintSyntaxTree()
+        print(semantic_parser.Environment)
 
     except LexicalAnalyzerError as ex:
         print(ex)
     except ParserError as ex:
         print(ex)
-
+    except SemanticError as ex:
+        print(ex)
 
 if __name__ == '__main__':
     main()
