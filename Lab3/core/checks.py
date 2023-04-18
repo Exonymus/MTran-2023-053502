@@ -67,7 +67,9 @@ operators = {
     '&=': Language.Operators.BITWISE_AND_ASSIGN,
     '|=': Language.Operators.BITWISE_OR_ASSIGN,
     '&&': Language.Operators.LOGICAL_AND,
+    'and': Language.Operators.LOGICAL_AND,
     '||': Language.Operators.LOGICAL_OR,
+    'or': Language.Operators.LOGICAL_OR,
     '&': Language.Operators.BITWISE_AND,
     '|': Language.Operators.BITWISE_OR,
     '^': Language.Operators.BITWISE_XOR,
@@ -84,6 +86,7 @@ operators = {
     '+': Language.Operators.PLUS,
     '-': Language.Operators.MINUS,
     '!': Language.Operators.NOT,
+    'not': Language.Operators.NOT,
     '=': Language.Operators.EQUAL
 }
 

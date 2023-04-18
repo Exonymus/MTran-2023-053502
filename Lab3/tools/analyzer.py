@@ -199,7 +199,9 @@ class LexicalAnalyzer:
             self.Buffer += self.Char
             self.ReadChar()
 
-        if IsKeyword(self.Buffer):
+        if IsOperator(self.Buffer):
+            self.AddLexeme(Language.LexemeTypes.OPERATOR, operators[self.Buffer])
+        elif IsKeyword(self.Buffer):
             self.AddLexeme(Language.LexemeTypes.KEY_WORD, key_words[self.Buffer])
         else:
             if self.Char == '[':

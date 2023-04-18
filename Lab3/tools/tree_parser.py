@@ -549,9 +549,16 @@ class Parser:
 
         right_node = None
 
-        if var_type in [Language.VariableTypes.INT, Language.VariableTypes.DOUBLE] or \
-                var_type[0] in [Language.VariableTypes.POINTER, Language.VariableTypes.ARRAY]:
+        if var_type in [Language.VariableTypes.INT, Language.VariableTypes.DOUBLE]:
             right_node = self.ParseArithmeticExpr()
+        if isinstance(var.itemType, list) \
+                and var_type[0] in [Language.VariableTypes.POINTER, Language.VariableTypes.ARRAY]:
+            if var_type[1] in [Language.VariableTypes.INT, Language.VariableTypes.DOUBLE]:
+                right_node = self.ParseArithmeticExpr()
+            elif var_type[1] == Language.VariableTypes.STRING:
+                right_node = self.ParseStringExpr()
+            elif var_type[1] == Language.VariableTypes.BOOL:
+                right_node = self.ParseBoolExpr()
         elif var_type == Language.VariableTypes.STRING:
             right_node = self.ParseStringExpr()
         elif var_type == Language.VariableTypes.BOOL:
@@ -820,6 +827,8 @@ class Parser:
         if lexeme.itemType == Language.LexemeTypes.IDENTIFIER and \
                 self.GetVariable(lexeme).itemType == Language.VariableTypes.BOOL:
             node = self.ParseUsingIdentifier()
+        elif self.GetCurrentLexeme().itemType == Language.LexemeTypes.INT_NUM:
+            node = self.ParseArithmeticExpr()
         elif self.CurrentLexemeMatches(Language.Delimiters.OPEN_PARENTHESIS):
             old_lex_index = self.CurrLexemeIndex
             self.NextLexeme()

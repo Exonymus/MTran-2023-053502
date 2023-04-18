@@ -1,5 +1,5 @@
 from tools.analyzer import *
-from tools.parser import *
+from tools.tree_parser import *
 from sys import getsizeof
 
 
@@ -118,7 +118,6 @@ def main():
         # Syntax tree
         print("\t⇒ Syntax tree:\n")
         parser.PrintSyntaxTree()
-        # root = parser.GetTree()
 
     except LexicalAnalyzerError as ex:
         print(ex)
