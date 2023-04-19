@@ -122,7 +122,6 @@ def main():
         # Syntax tree
         print("\t⇒ Syntax tree:\n")
         parser.PrintSyntaxTree()
-        print(semantic_parser.Environment)
 
     except LexicalAnalyzerError as ex:
         print(ex)

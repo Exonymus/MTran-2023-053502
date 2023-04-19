@@ -45,31 +45,40 @@ class SemanticParser:
 
         # Define parser behaviour
         if node.GetLexeme() is not None:
+            lexeme = node.GetLexeme()
 
             # Check for cout / cin
-            if node.GetLexeme().itemValue in [Language.KeyWords.CIN, Language.KeyWords.COUT]:
+            if lexeme.itemValue in [Language.KeyWords.CIN, Language.KeyWords.COUT, Language.KeyWords.ENDL]:
                 if not self.Environment["Libraries"].__contains__("iostream"):
                     raise SemanticError("iostream library required.", self.Source,
-                                         node.GetLexeme().coordinate_line, node.GetLexeme().coordinate_offset)
+                                         lexeme.coordinate_line, lexeme.coordinate_offset)
                 if not self.Environment["Namespaces"].__contains__("std"):
                     raise SemanticError("std namespace required.", self.Source,
-                                         node.GetLexeme().coordinate_line, node.GetLexeme().coordinate_offset)
+                                         lexeme.coordinate_line, lexeme.coordinate_offset)
 
             # Check for using undefined var in assignment and cout
-            if node.GetLexeme().itemValue == Language.Operators.EQUAL:
+            if lexeme.itemValue == Language.Operators.EQUAL:
                 right_part = children[len(children) - 1].GetLexeme()
                 if right_part.itemType == Language.LexemeTypes.IDENTIFIER:
                     self.CheckForDefined(right_part)
-            elif node.GetLexeme().itemValue == Language.KeyWords.COUT:
+            elif lexeme.itemValue == Language.KeyWords.COUT:
                 for child in children:
                     ch_lexeme = child.GetLexeme()
                     if ch_lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
                         self.CheckForDefined(ch_lexeme)
 
+            # Check for 0 in division
+            if lexeme.itemValue == Language.Operators.SLASH:
+                if children[1].GetLexeme().itemType in [Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
+                    self.CheckForNull(children[1])
 
+            # Check for 0 in percentage
+            if lexeme.itemValue == Language.Operators.PERCENT:
+                self.CheckPercentageStatement(children[0])
+                self.CheckPercentageStatement(children[1])
 
-            # TODO: Check for array index
-            # TODO: Check for arithmetics
+                if children[1].GetLexeme().itemType in [Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
+                    self.CheckForNull(children[1])
 
         # Check function call
         elif node.Type == SyntaxTreNodeTypes.FUNCTION_CALL:
@@ -87,6 +96,7 @@ class SemanticParser:
                                     arguments_node[0].GetLexeme().coordinate_offset)
 
             for i in range(len(arguments_node)):
+                # Get function's argument lexeme
                 argument = arguments_node[i].GetLexeme()
 
                 if argument.itemType == Language.LexemeTypes.IDENTIFIER:
@@ -199,10 +209,43 @@ class SemanticParser:
             raise FunctionArgumentError(required_type, argument_type, self.Source,
                                         argument.coordinate_line, argument.coordinate_offset)
 
-    def CheckArithmetic(self, node):
+    def CheckPercentageStatement(self, node):
         """
             Checks arithmetic problems in provided syntax tree node.
         """
 
         if node is None:
             return
+
+        # Get current lexeme
+        lexeme = node.GetLexeme()
+
+        if lexeme is not None:
+            if lexeme.itemType == Language.LexemeTypes.DOUBLE_NUM:
+                raise SemanticError("Int was expected in percentage statement.",
+                                    self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
+            if lexeme.itemType == Language.LexemeTypes.IDENTIFIER \
+                    and self.VariableTable[lexeme.itemValue].itemType == Language.VariableTypes.DOUBLE:
+                raise SemanticError("Int was expected in percentage statement.",
+                                    self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
+
+        for child in node.GetChildren():
+            self.CheckPercentageStatement(child)
+
+    def CheckForNull(self, node):
+        """
+            Checks provided literal node for null value.
+        """
+
+        lexeme = node.GetLexeme()
+
+        # Get literal from table
+        literal = self.LiteralTable.get(lexeme.itemValue)
+
+        if lexeme.itemType == Language.LexemeTypes.INT_NUM:
+            if int(literal.itemValue) == 0:
+                raise DivisionByZeroError(self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
+
+        elif lexeme.itemType == Language.LexemeTypes.DOUBLE_NUM:
+            if float(literal.itemValue) == 0.0:
+                raise DivisionByZeroError(self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
