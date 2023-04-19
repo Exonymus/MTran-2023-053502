@@ -270,11 +270,15 @@ class TreeParser:
 
             # Try to get STRING argument
             if argument_node is None:
+                if self.GetNeighbourLexeme(-1).itemType == Language.LexemeTypes.IDENTIFIER:
+                    self.CurrLexemeIndex -= 1
                 with contextlib.suppress(ParserError):
                     argument_node = self.ParseStringExpr()
 
             # Try to get BOOL argument
             if argument_node is None:
+                if self.GetNeighbourLexeme(-1).itemType == Language.LexemeTypes.IDENTIFIER:
+                    self.CurrLexemeIndex -= 1
                 with contextlib.suppress(ParserError):
                     argument_node = self.ParseBoolExpr()
 

@@ -69,7 +69,6 @@ class SemanticParser:
 
 
             # TODO: Check for array index
-            # TODO: Check for function call argument
             # TODO: Check for arithmetics
 
         # Check function call
@@ -94,8 +93,8 @@ class SemanticParser:
                     # Check if argument is defined
                     self.CheckForDefined(argument)
 
-                    # Check if argument has valid type
-                    self.CheckArgumentType(function_name, argument, i)
+                # Check if argument has valid type
+                self.CheckArgumentType(function_name, argument, i)
 
 
 
@@ -167,11 +166,26 @@ class SemanticParser:
         """
 
         required_type = self.Environment["Functions"][function_name]["Arguments"][pos]
-        argument_type = self.VariableTable[argument.itemValue].itemType
+        argument_type = None
 
+        if argument.itemType == Language.LexemeTypes.IDENTIFIER:
+            argument_type = self.VariableTable[argument.itemValue].itemType
+        else:
+            # Parse the literal type.
+            if argument.itemType == Language.LexemeTypes.INT_NUM:
+                argument_type = Language.VariableTypes.INT
+            if argument.itemType == Language.LexemeTypes.DOUBLE_NUM:
+                argument_type = Language.VariableTypes.DOUBLE
+            if argument.itemType == Language.LexemeTypes.STRING:
+                argument_type = Language.VariableTypes.STRING
+            if argument.itemType == Language.LexemeTypes.KEY_WORD and \
+                    argument.itemValue in [Language.KeyWords.TRUE, Language.KeyWords.FALSE]:
+                argument_type = Language.VariableTypes.BOOL
+
+        # Check for the array type
         if isinstance(argument_type, list) and isinstance(required_type, list):
             if argument_type[1] != required_type[1]:
-                raise FunctionArgumentError(required_type, self.Source,
+                raise FunctionArgumentError(required_type, argument_type, self.Source,
                                             argument.coordinate_line, argument.coordinate_offset)
 
             if argument_type[0] != required_type[0]:
@@ -179,10 +193,10 @@ class SemanticParser:
                         and required_type[0] == Language.VariableTypes.POINTER:
                     return
                 else:
-                    raise FunctionArgumentError(required_type, self.Source,
+                    raise FunctionArgumentError(required_type, argument_type, self.Source,
                                                 argument.coordinate_line, argument.coordinate_offset)
-        elif argument_type != required_type:
-            raise FunctionArgumentError(required_type, self.Source,
+        elif (argument_type != required_type) or argument_type is None:
+            raise FunctionArgumentError(required_type, argument_type, self.Source,
                                         argument.coordinate_line, argument.coordinate_offset)
 
     def CheckArithmetic(self, node):

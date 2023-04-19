@@ -94,9 +94,9 @@ class FunctionArgumentError(SemanticError):
         Error to specify parser failed on bad function argument type index.
     """
 
-    def __init__(self, arg_type, file_name, coordinate_line, coordinate_offset):
+    def __init__(self, req_type, arg_type, file_name, coordinate_line, coordinate_offset):
         super().__init__(
-            f"Argument with {arg_type} type was expected here.",
+            f"Argument with {req_type} type was expected here, but {arg_type} got instead.",
             file_name,
             coordinate_line,
             coordinate_offset,
