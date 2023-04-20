@@ -183,3 +183,36 @@ def IsMultiplicationOperator(operator):
     """
 
     return operator in [Language.Operators.MULTIPLY, Language.Operators.SLASH, Language.Operators.PERCENT]
+
+inverted_operators = {
+    Language.Operators.DOUBLE_EQUAL: '==',
+    Language.Operators.NOT_EQUAL: '!=',
+    Language.Operators.LESS_EQUAL: '<=',
+    Language.Operators.GREATER: '>',
+    Language.Operators.GREATER_EQUAL: '>=',
+    Language.Operators.MULTIPLY_ASSIGN: '*=',
+    Language.Operators.DIVIDE_ASSIGN: '/=',
+    Language.Operators.PERCENT_ASSIGN: '%=',
+    Language.Operators.BITWISE_AND_ASSIGN: '&=',
+    Language.Operators.BITWISE_OR_ASSIGN: '|=',
+    Language.Operators.LOGICAL_AND: 'and',
+    Language.Operators.LOGICAL_OR: 'or',
+    Language.Operators.BITWISE_AND: '&',
+    Language.Operators.BITWISE_OR: '|',
+    Language.Operators.BITWISE_XOR: '^',
+    Language.Operators.BITWISE_NOT: '~',
+    Language.Operators.LEFT_SHIFT: '<<',
+    Language.Operators.RIGHT_SHIFT: '>>',
+    Language.Operators.ADD_ASSIGN: '+=',
+    Language.Operators.SUBTRACT_ASSIGN: '-=',
+    Language.Operators.LESS: '<',
+    Language.Operators.MULTIPLY: '*',
+    Language.Operators.SLASH: '/',
+    Language.Operators.DOUBLE_SLASH: '//',
+    Language.Operators.PERCENT: '%',
+    Language.Operators.PLUS: '+',
+    Language.Operators.MINUS: '-',
+    Language.Operators.NOT: 'not',
+    Language.Operators.EQUAL: '='
+}
+
