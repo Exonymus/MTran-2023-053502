@@ -1,4 +1,5 @@
 from tools.analyzer import *
+from tools.translator import *
 from tools.tree_parser import *
 from tools.semantic_parser import *
 
@@ -122,6 +123,11 @@ def main():
         # Syntax tree
         print("\t⇒ Syntax tree:\n")
         parser.PrintSyntaxTree()
+
+        # Translate CPP AST to Python
+        br()
+        print("\t⇒ Translated code output:\n")
+        translator = Translator(root, literalTable, variableTable)
 
     except LexicalAnalyzerError as ex:
         print(ex)
