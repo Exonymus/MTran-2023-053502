@@ -13,6 +13,8 @@ def CreateFunctionObj(name, args, code):
     args_str = ", ".join(args)
     function_str = f"def {name}({args_str}):\n{code}"
 
+    print(function_str)
+
     # Compile function
     compiled_func = compile(function_str, "<string>", "exec")
     func_code = next((c for c in compiled_func.co_consts if isinstance(c, types.CodeType)), None)
@@ -238,6 +240,8 @@ class Translator:
                 elif lexeme.itemType in [Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM,
                                          Language.LexemeTypes.STRING]:
                     part = str(self.GetLiteral(lexeme.itemValue).itemValue)
+            elif node.Type == SyntaxTreNodeTypes.FUNCTION_CALL:
+                part = self.ParseFunctionCallStatement(node, 0)
             elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
                 var_name = str(self.GetVariable(lexeme.itemValue).itemName)
                 part = f"{var_name}[int({self.ParseOperator(node.GetChildren()[0], 0)})]"

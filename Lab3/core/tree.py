@@ -1,3 +1,4 @@
+from core.checks import IsKeyword
 from core.language import *
 from core.tables import VariableTableItem
 
@@ -49,4 +50,8 @@ def printSyntaxTree(root, depth: int = 0):
 
     print('\t' * depth + str(root))
     for child in root.GetChildren():
+        # Skip types
+        if child and child.GetLexeme() and str(child.GetLexeme().itemValue) \
+                in ["KeyWords.VOID", "KeyWords.INT", "KeyWords.DOUBLE", "KeyWords.STRING", "KeyWords.BOOL"]:
+            continue
         printSyntaxTree(child, depth + 1)

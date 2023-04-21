@@ -642,6 +642,9 @@ class TreeParser:
         """
 
         lexeme = self.GetCurrentLexeme()
+        function_call = lexeme.itemType == Language.LexemeTypes.IDENTIFIER and \
+                isinstance(self.GetVariable(lexeme).itemType, list) and \
+                self.GetVariable(lexeme).itemType[0] == Language.VariableTypes.FUNCTION
 
         if self.CurrentLexemeMatches(Language.Delimiters.OPEN_PARENTHESIS):
             self.NextLexeme()
@@ -659,6 +662,10 @@ class TreeParser:
             # Array index
             node.AddChild(self.ParseArrayIndex())
             self.NextLexeme()
+        elif function_call:
+            node = self.ParseStatement(True)
+            if self.GetNeighbourLexeme(1).itemValue == Language.Delimiters.SEMICOLON:
+                self.NextLexeme()
         elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
             node = self.ParseUsingIdentifier()
             self.WaitForVariableType(node.GetLexeme(), (Language.VariableTypes.INT, Language.VariableTypes.DOUBLE))
@@ -689,7 +696,12 @@ class TreeParser:
         """
 
         lexeme = self.GetCurrentLexeme()
-        if lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+        if lexeme.itemType == Language.LexemeTypes.IDENTIFIER and \
+                isinstance(self.GetVariable(lexeme).itemType, list) and \
+                self.GetVariable(lexeme).itemType[0] == Language.VariableTypes.FUNCTION:
+            node = self.ParseStatement(True)
+            self.NextLexeme()
+        elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
             node = self.ParseUsingIdentifier()
             if not cout:
                 self.WaitForVariableType(node.GetLexeme(), Language.VariableTypes.STRING)
@@ -837,6 +849,11 @@ class TreeParser:
 
         lexeme = self.GetCurrentLexeme()
         if lexeme.itemType == Language.LexemeTypes.IDENTIFIER and \
+                isinstance(self.GetVariable(lexeme).itemType, list) and \
+                self.GetVariable(lexeme).itemType[0] == Language.VariableTypes.FUNCTION:
+            node = self.ParseStatement(True)
+            self.NextLexeme()
+        elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER and \
                 self.GetVariable(lexeme).itemType == Language.VariableTypes.BOOL:
             node = self.ParseUsingIdentifier()
         elif self.GetCurrentLexeme().itemType == Language.LexemeTypes.INT_NUM:

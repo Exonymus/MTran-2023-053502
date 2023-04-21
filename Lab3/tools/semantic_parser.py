@@ -59,7 +59,7 @@ class SemanticParser:
             # Check for using undefined var in assignment and cout
             if lexeme.itemValue == Language.Operators.EQUAL:
                 right_part = children[len(children) - 1].GetLexeme()
-                if right_part.itemType == Language.LexemeTypes.IDENTIFIER:
+                if right_part and right_part.itemType == Language.LexemeTypes.IDENTIFIER:
                     self.CheckForDefined(right_part)
             elif lexeme.itemValue == Language.KeyWords.COUT:
                 for child in children:
@@ -130,8 +130,10 @@ class SemanticParser:
 
             if node.GetLexeme().itemValue == Language.Operators.EQUAL:
                 for i in range(len(children)):
-                    if children[i].GetLexeme().itemType == Language.LexemeTypes.IDENTIFIER and i != len(children) - 1:
-                        variable = self.VariableTable[children[i].GetLexeme().itemValue]
+                    if children[i].Type == SyntaxTreNodeTypes.FUNCTION_CALL:
+                        continue
+                    elif children[i].GetLexeme().itemType == Language.LexemeTypes.IDENTIFIER and i != len(children) - 1:
+                        variable = self.GetVariable(children[i].GetLexeme().itemValue)
                         variable_name = f"{str(variable.itemName)} " \
                                         f"[{str(variable.itemBlockId)}:{str(variable.itemBlockLevel)}]"
                         self.Environment["Variables"][variable_name] = "defined"
@@ -144,13 +146,13 @@ class SemanticParser:
                 arguments = []
                 if arguments_node.GetChildren():
                     for arg in arguments_node.GetChildren():
-                        variable = self.VariableTable[arg.GetChildren()[1].GetLexeme().itemValue]
+                        variable = self.GetVariable(arg.GetChildren()[1].GetLexeme().itemValue)
                         arguments.append(variable.itemType)
 
                         variable_name = f"{str(variable.itemName)} " \
                                         f"[{str(variable.itemBlockId)}:{str(variable.itemBlockLevel)}]"
                         self.Environment["Variables"][variable_name] = "defined"
-                function_name = self.VariableTable[children[1].GetLexeme().itemValue].itemName
+                function_name = self.GetVariable(children[1].GetLexeme().itemValue).itemName
                 function_info = {
                     "Type": children[0].GetLexeme().itemValue,
                     "Arguments": arguments
@@ -163,7 +165,7 @@ class SemanticParser:
             Checks if variable initialized.
         """
 
-        variable = self.VariableTable[lexeme.itemValue]
+        variable = self.GetVariable(lexeme.itemValue)
         variable_name = f"{str(variable.itemName)} " \
                         f"[{str(variable.itemBlockId)}:{str(variable.itemBlockLevel)}]"
         if self.Environment["Variables"].get(variable_name) is None:
@@ -179,7 +181,7 @@ class SemanticParser:
         argument_type = None
 
         if argument.itemType == Language.LexemeTypes.IDENTIFIER:
-            argument_type = self.VariableTable[argument.itemValue].itemType
+            argument_type = self.GetVariable(argument.itemValue).itemType
         else:
             # Parse the literal type.
             if argument.itemType == Language.LexemeTypes.INT_NUM:
@@ -228,7 +230,7 @@ class SemanticParser:
                 raise SemanticError("Int was expected in percentage statement.",
                                     self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
             if lexeme.itemType == Language.LexemeTypes.IDENTIFIER \
-                    and self.VariableTable[lexeme.itemValue].itemType == Language.VariableTypes.DOUBLE:
+                    and self.GetVariable(lexeme.itemValue).itemType == Language.VariableTypes.DOUBLE:
                 raise SemanticError("Int was expected in percentage statement.",
                                     self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
 
@@ -252,3 +254,17 @@ class SemanticParser:
         elif lexeme.itemType == Language.LexemeTypes.DOUBLE_NUM:
             if float(literal.itemValue) == 0.0:
                 raise DivisionByZeroError(self.Source, lexeme.coordinate_line, lexeme.coordinate_offset)
+
+    def GetVariable(self, variable_id):
+        """
+            Gets variable item from the table.
+        """
+
+        variable = None
+
+        try:
+            variable = [v for v in self.VariableTable if v.itemId == variable_id][0]
+        except:
+            raise ValueError("Bad variable id")
+
+        return variable
