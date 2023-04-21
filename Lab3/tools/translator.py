@@ -1,21 +1,17 @@
 import types
-import inspect
-import ast
-
-import astor
 
 from core.checks import *
 from core.tree import *
 
 
-def CreateFunctionObj(name, args):
+def CreateFunctionObj(name, args, code):
     """
         Creates a new function object from the given data.
     """
 
     # Build function signature string from arg_types
     args_str = ", ".join(args)
-    function_str = f"def {name}({args_str}): pass"
+    function_str = f"def {name}({args_str}):\n{code}"
 
     # Compile function
     compiled_func = compile(function_str, "<string>", "exec")
@@ -26,30 +22,6 @@ def CreateFunctionObj(name, args):
         raise ValueError("Unable to find function code object.")
 
     return types.FunctionType(func_code, globals(), name)
-
-
-def UpdateFuncCode(func, new_code):
-    """
-        Updates provided function object's code with new instructions.
-    """
-
-    # Get function source code
-    source = inspect.getsource(func)
-
-    # Build AST from source code
-    tree = ast.parse(source)
-
-    # Append new code to AST
-    new_code_node = ast.parse(new_code).body
-    tree.body[0].body += new_code_node
-
-    # Convert AST back to source code
-    new_source = astor.to_source(tree)
-
-    return type(func)(
-        compile(new_source, "<string>", "exec").co_consts[0], func.__globals__
-    )
-
 
 class Translator:
     """
@@ -90,18 +62,21 @@ class Translator:
                 # Get function arguments
                 func_args = self.GetFunctionArguments(func_nodes[2])
 
-                # Get function object
-                function_obj = CreateFunctionObj(func_name, func_args)
-
-                # Fill function body with code
+                # Get function body code
                 body_instructions_nodes = func_nodes[3].GetChildren()
-                # printSyntaxTree(func_nodes[3])
+                instructions = []
+
                 for instruction_node in body_instructions_nodes:
                     if not instruction_node:
                         continue
-                    new_code = self.ParseInstruction(instruction_node, 1)
-                    print(new_code)
-                    # UpdateFuncCode(function_obj, new_code)
+                    instruction = self.ParseInstruction(instruction_node, 1)
+                    if instruction is not None:
+                        instructions.append(instruction)
+                func_code = "\n".join(instructions)
+
+                # Get function object
+                function_obj = CreateFunctionObj(func_name, func_args, func_code)
+
                 # Assign function object to global scope
                 globals()[func_name] = function_obj
 
@@ -151,6 +126,10 @@ class Translator:
             return "float"
 
     def GetVariable(self, variable_id):
+        """
+            Gets variable item from the table.
+        """
+
         variable = None
 
         try:
@@ -161,6 +140,10 @@ class Translator:
         return variable
 
     def GetLiteral(self, literal_id):
+        """
+            Gets literal item from the table.
+        """
+
         literal = None
 
         try:
@@ -177,33 +160,45 @@ class Translator:
 
         instruction = None
         lexeme = None
+        cur_level = '\t' * level
 
         if instruction_node.Type == SyntaxTreNodeTypes.COMMON:
             lexeme = instruction_node.GetLexeme()
 
         if instruction_node.Type == SyntaxTreNodeTypes.DECLARATION:
-            instruction = str(self.ParseVariableDeclaration(instruction_node, level))
+            instruction = str(self.ParseVariableDeclarationStatement(instruction_node, level))
         elif instruction_node.Type == SyntaxTreNodeTypes.FUNCTION_CALL:
-            instruction = str(self.ParseFunctionCall(instruction_node, level))
+            instruction = str(self.ParseFunctionCallStatement(instruction_node, level))
         elif lexeme and lexeme.itemValue == Language.Operators.EQUAL:
             instruction = str(self.ParseOperator(instruction_node, level))
         elif lexeme and lexeme.itemValue == Language.KeyWords.IF:
             instruction = str(self.ParseIfStatement(instruction_node, level))
         elif lexeme and lexeme.itemValue == Language.KeyWords.WHILE:
             instruction = str(self.ParseWhileStatement(instruction_node, level))
+        elif lexeme and lexeme.itemValue == Language.KeyWords.FOR:
+            instruction = str(self.ParseForStatement(instruction_node, level))
         elif lexeme and lexeme.itemValue == Language.KeyWords.DO:
             instruction = str(self.ParseDoWhileStatement(instruction_node, level))
         elif lexeme and lexeme.itemValue in [Language.Operators.INCREMENT, Language.Operators.DECREMENT]:
             instruction = str(self.ParseUnaryOperatorStatement(instruction_node, level))
         elif lexeme and lexeme.itemValue == Language.KeyWords.CIN:
-            instruction = str(self.ParseCin(instruction_node, level))
+            instruction = str(self.ParseCinStatement(instruction_node, level))
         elif lexeme and lexeme.itemValue == Language.KeyWords.COUT:
-            instruction = str(self.ParseCout(instruction_node, level))
+            instruction = str(self.ParseCoutStatement(instruction_node, level))
+        elif lexeme and lexeme.itemValue in [Language.KeyWords.RETURN, Language.KeyWords.EXIT]:
+            instruction = str(self.ParseReturnExitStatement(instruction_node, level))
+        elif lexeme and lexeme.itemValue == Language.KeyWords.BREAK:
+            instruction = f"{cur_level}break"
+        elif lexeme and lexeme.itemValue == Language.KeyWords.CONTINUE:
+            instruction = f"{cur_level}continue"
 
         if instruction is not None:
             return  instruction
 
     def ParseOperator(self, operator_node, level):
+        """
+            Parses the operator expression to Python.
+        """
 
         parts = []
         operator = None
@@ -219,6 +214,20 @@ class Translator:
         except:
             raise ValueError("Unknown operator")
 
+        if operator == "-" and len(operator_node.GetChildren()) == 1:
+            node = operator_node.GetChildren()[0]
+            lexeme = operator_node.GetChildren()[0].GetLexeme()
+
+            if not node.GetChildren():
+                if lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+                    return "-" + str(self.GetVariable(lexeme.itemValue).itemName)
+                elif lexeme.itemType in [Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
+                    return "-" + str(self.GetLiteral(lexeme.itemValue).itemValue)
+            elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+                var_name = str(self.GetVariable(lexeme.itemValue).itemName)
+                return "-" + f"{var_name}[int({self.ParseOperator(node.GetChildren()[0], 0)})]"
+
+
         for node in operator_node.GetChildren():
             lexeme = node.GetLexeme()
             part = None
@@ -231,9 +240,12 @@ class Translator:
                     part = str(self.GetLiteral(lexeme.itemValue).itemValue)
             elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
                 var_name = str(self.GetVariable(lexeme.itemValue).itemName)
-                part = f"{var_name}[{self.ParseOperator(node.GetChildren()[0], 0)}]"
+                part = f"{var_name}[int({self.ParseOperator(node.GetChildren()[0], 0)})]"
             elif IsOperator(operator):
-                part = f"({self.ParseOperator(node, level)})"
+                if lexeme.itemValue == Language.Operators.MINUS and len(node.GetChildren()) == 1:
+                    part = f"{self.ParseOperator(node, 0)}"
+                else:
+                    part = f"({self.ParseOperator(node, 0)})"
 
             if part is not None:
                 parts.append(part)
@@ -242,7 +254,10 @@ class Translator:
 
         return current_level + str(operator).join(parts)
 
-    def ParseVariableDeclaration(self, declaration_node, level):
+    def ParseVariableDeclarationStatement(self, declaration_node, level):
+        """
+            Parses the variable declaration statement to Python.
+        """
 
         declarations = []
         current_level = level * '\t'
@@ -269,6 +284,9 @@ class Translator:
         return "\n".join(declarations)
 
     def ParseIfStatement(self, if_node, level):
+        """
+            Parses the if statement to Python.
+        """
 
         current_level = level * '\t'
         condition_node = if_node.GetChildren()[0]
@@ -279,17 +297,46 @@ class Translator:
 
         return f"{current_level}if {self.ParseOperator(condition_node, 0)}:\n{code_block}"
 
-    def ParseFunctionCall(self, call_node, level):
+    def ParseFunctionCallStatement(self, call_node, level):
+        """
+            Parses the function call statement to Python.
+        """
 
         current_level = level * '\t'
 
         function_name = self.GetVariable(call_node.GetChildren()[0].GetLexeme().itemValue).itemName
-        arguments = [self.GetVariable(arg.GetLexeme().itemValue).itemName
+        arguments = [self.ParseFunctionArgument(arg)
                      for arg in call_node.GetChildren()[1].GetChildren()]
+        try:
+            return f"{current_level}globals()['{function_name}']({','.join(arguments)})"
+        except:
+            raise ValueError("Bad function call")
 
-        return f"{current_level}globals()['{function_name}']({','.join(arguments)})"
+    def ParseFunctionArgument(self, argument_node):
+        """
+            Gets the name of the function call argument.
+        """
+
+        lexeme = argument_node.GetLexeme()
+
+        if not argument_node.GetChildren():
+            if lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+                return str(self.GetVariable(lexeme.itemValue).itemName)
+            elif lexeme.itemType in [Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
+                return str(self.GetLiteral(lexeme.itemValue).itemValue)
+            elif lexeme.itemType == Language.LexemeTypes.STRING:
+                return repr(self.GetLiteral(lexeme.itemValue).itemValue)
+        elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+            var_name = str(self.GetVariable(lexeme.itemValue).itemName)
+            var_len = self.ParseOperator(argument_node.GetChildren()[0], 0)
+            return f"{var_name}[{var_len}]"
+        elif lexeme.itemType == Language.LexemeTypes.OPERATOR:
+            return self.ParseOperator(argument_node, 0)
 
     def ParseWhileStatement(self, while_node, level):
+        """
+            Parses the while cycle statement to Python.
+        """
 
         current_level = level * '\t'
         condition_node = while_node.GetChildren()[0]
@@ -300,11 +347,47 @@ class Translator:
 
         return f"{current_level}while {self.ParseOperator(condition_node, 0)}:\n{code_block}"
 
+    def ParseForStatement(self, for_node, level):
+        """
+            Parses the for cycle statement to Python.
+        """
+
+        current_level = level * '\t'
+        cycle_level = (level + 1) * '\t'
+        condition_nodes = for_node.GetChildren()
+
+        code_node = condition_nodes[len(for_node.GetChildren()) - 1]
+        instructions = [self.ParseInstruction(instruction, level + 1) for instruction in code_node.GetChildren()]
+        code_block = '\n'.join(instructions)
+
+        if len(condition_nodes) == 1 and condition_nodes[0].Type == SyntaxTreNodeTypes.CODE_BLOCK:
+            return f"{current_level}while 1:\n{code_block}"
+        elif len(condition_nodes) == 4:
+            first_condition = None
+            if condition_nodes[0].Type == SyntaxTreNodeTypes.DECLARATION:
+                first_condition = self.ParseVariableDeclarationStatement(condition_nodes[0], level)
+            elif condition_nodes[0].GetLexeme().itemType == Language.LexemeTypes.OPERATOR:
+                first_condition = self.ParseOperator(condition_nodes[0], level)
+            second_condition = self.ParseOperator(condition_nodes[1], 0)
+            third_condition = self.ParseInstruction(condition_nodes[2], level)
+
+            return f"{first_condition}\n" \
+                   f"{current_level}while 1:\n" \
+                   f"{cycle_level}if not {second_condition}: break\n" \
+                   f"{code_block}\n" \
+                   f"{current_level}{third_condition}"
+
+
+
+        # return f"{current_level}while {self.ParseOperator(condition_node, 0)}:\n{code_block}"
+
     def ParseDoWhileStatement(self, doWhile_node, level):
+        """
+            Parses the do-while cycle statement to Python.
+        """
 
         current_level = level * '\t'
         condition_node = doWhile_node.GetChildren()[1].GetChildren()[0]
-        # printSyntaxTree(condition_node)
 
         code_node = doWhile_node.GetChildren()[0]
         instructions_out = [self.ParseInstruction(instruction, level) for instruction in code_node.GetChildren()]
@@ -313,10 +396,13 @@ class Translator:
         code_block_out = '\n'.join(instructions_out)
         code_block_in = '\n'.join(instructions_in)
 
-        return f"{current_level}{code_block_out}" \
+        return f"{code_block_out}" \
                f"\n{current_level}while {self.ParseOperator(condition_node, 0)}:\n{code_block_in}"
 
     def ParseUnaryOperatorStatement(self, unary_node, level):
+        """
+            Parses unary operator statements to Python.
+        """
 
         current_level = level * '\t'
         var_name = str(self.GetVariable(unary_node.GetChildren()[0].GetLexeme().itemValue).itemName)
@@ -326,7 +412,10 @@ class Translator:
         elif unary_node.GetLexeme().itemValue == Language.Operators.DECREMENT:
             return f"{current_level}{var_name}-=1"
 
-    def ParseCin(self, cin_node, level):
+    def ParseCinStatement(self, cin_node, level):
+        """
+            Parses the input statement to Python.
+        """
 
         current_level = level * '\t'
         children = cin_node.GetChildren()
@@ -338,22 +427,28 @@ class Translator:
 
             if not node.GetChildren():
                 if lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
-                    instruction = f"{current_level}input({str(self.GetVariable(lexeme.itemValue).itemName)})"
+                    arg_type = str(self.GetArgType(self.GetVariable(lexeme.itemValue).itemType))
+                    instruction = f"{current_level}" \
+                                  f"{str(self.GetVariable(lexeme.itemValue).itemName)}={arg_type}(input())"
             elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
                 var_name = str(self.GetVariable(lexeme.itemValue).itemName)
                 var_len = self.ParseOperator(node.GetChildren()[0], 0)
-                instruction = f"{current_level}input({var_name}[{var_len}])"
+                item_type = str(self.GetArgType(self.GetVariable(lexeme.itemValue).itemType[1]))
+                instruction = f"{current_level}" \
+                              f"{var_name}[{var_len}]={item_type}(input())"
             if instruction is not None:
                 instructions.append(instruction)
             else:
-                print(lexeme)
                 raise ValueError("Bad arg to input")
 
         return '\n'.join(instructions)
 
 
 
-    def ParseCout(self, cout_node, level):
+    def ParseCoutStatement(self, cout_node, level):
+        """
+            Parses the output statement to Python.
+        """
 
         current_level = level * '\t'
         children = cout_node.GetChildren()
@@ -379,9 +474,44 @@ class Translator:
             if message is not None:
                 messages.append(message)
             else:
-                print(lexeme)
                 raise ValueError("Bad arg to print")
 
-        return f"{current_level}print({','.join(messages)})"
+        return f"{current_level}print({','.join(messages)}, end={repr('')})"
 
+    def ParseReturnExitStatement(self, return_exit_node, level):
+        """
+            Parses the return and exit statements to Python.
+        """
 
+        current_level = level * '\t'
+        children = return_exit_node.GetChildren()
+        return_arg = None
+
+        if children:
+            node = children[0]
+            lexeme = node.GetLexeme()
+
+            if not node.GetChildren():
+                if lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+                    return_arg = str(self.GetVariable(lexeme.itemValue).itemName)
+                elif lexeme.itemType in [Language.LexemeTypes.INT_NUM, Language.LexemeTypes.DOUBLE_NUM]:
+                    return_arg = str(self.GetLiteral(lexeme.itemValue).itemValue)
+                elif lexeme.itemType == Language.LexemeTypes.STRING:
+                    return_arg = repr(self.GetLiteral(lexeme.itemValue).itemValue)
+            elif lexeme.itemType == Language.LexemeTypes.IDENTIFIER:
+                var_name = str(self.GetVariable(lexeme.itemValue).itemName)
+                var_len = self.ParseOperator(node.GetChildren()[0], 0)
+                return_arg = f"{var_name}[{var_len}]"
+
+            if return_arg is None:
+                raise ValueError("Bad return argument")
+            else:
+                if return_exit_node.GetLexeme().itemValue == Language.KeyWords.RETURN:
+                    return f"{current_level}return {return_arg}"
+                elif return_exit_node.GetLexeme().itemValue == Language.KeyWords.EXIT:
+                    return f"{current_level}quit({return_arg})"
+        else:
+            if return_exit_node.GetLexeme().itemValue == Language.KeyWords.RETURN:
+                return f"{current_level}return"
+            elif return_exit_node.GetLexeme().itemValue == Language.KeyWords.EXIT:
+                return f"{current_level}quit()"

@@ -107,22 +107,22 @@ def main():
         # Clear variable table
         variableTable = [var for var in variableTable if var.itemType != Language.VariableTypes.UNKNOWN]
         br()
-        #
-        # # Parsed lexemes
-        # print("\t⇒ LEXEMES:\n")
-        # printLexemes(lexemes)
-        #
-        # # Parsed literals
-        # print("\t⇒ LITERAL TABLE:\n")
-        # printLiterals(literalTable.Literals)
-        #
-        # # Parsed variables
-        # print("\t⇒ VARIABLE TABLE:\n")
-        # printVariables(variableTable)
-        #
-        # # Syntax tree
-        # print("\t⇒ Syntax tree:\n")
-        # parser.PrintSyntaxTree()
+
+        # Parsed lexemes
+        print("\t⇒ LEXEMES:\n")
+        printLexemes(lexemes)
+
+        # Parsed literals
+        print("\t⇒ LITERAL TABLE:\n")
+        printLiterals(literalTable.Literals)
+
+        # Parsed variables
+        print("\t⇒ VARIABLE TABLE:\n")
+        printVariables(variableTable)
+
+        # Syntax tree
+        print("\t⇒ Syntax tree:\n")
+        parser.PrintSyntaxTree()
 
         # Translate CPP AST to Python
         br()

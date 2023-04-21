@@ -206,6 +206,9 @@ class SemanticParser:
                     raise FunctionArgumentError(required_type, argument_type, self.Source,
                                                 argument.coordinate_line, argument.coordinate_offset)
         elif (argument_type != required_type) or argument_type is None:
+            if argument.itemType == Language.LexemeTypes.OPERATOR and \
+                required_type in [Language.VariableTypes.BOOL, Language.VariableTypes.INT, Language.VariableTypes.DOUBLE]:
+                return
             raise FunctionArgumentError(required_type, argument_type, self.Source,
                                         argument.coordinate_line, argument.coordinate_offset)
 

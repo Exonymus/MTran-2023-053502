@@ -59,7 +59,7 @@ int main()
     cout << "Original Array: \n";
     printArray(arr, n);
 
-    quickSort(arr, 0, n);
+    quickSort(arr, 0, n - 1);
 
     cout << "\nSorted Array: \n";
 
